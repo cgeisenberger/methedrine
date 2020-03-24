@@ -18,8 +18,11 @@ library(crystalmeth)
 
 # max 30 Mb uploads
 options(shiny.maxRequestSize = 30*1024^2)
-upload_dir = "./uploads/"
-report_dir = "./reports/"
+upload_dir <- "./uploads/"
+report_dir <- "./reports/"
+
+# attach report template
+report_template <- "/Users/cge/Dropbox/Research/software/methedrine/temp/netid_report.Rmd"
 
 # create folders if necessary
 if (!dir.exists(upload_dir)){
@@ -34,7 +37,7 @@ if (!dir.exists(report_dir)){
 
 
 # attach randomForest object
-load("./temp/NetID_v1.RData")
+load("/Users/cge/Dropbox/Research/software/methedrine/temp/NetID_v1.RData")
 
 # rename for convenience
 classifier <- net_id_v1
