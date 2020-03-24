@@ -42,11 +42,21 @@ tinytex::install_tinytex()
 
 All the necessary code to run *methedrine* is contained in `app.R`. There are three ways to run the application: 
 
-1. Direct download
-  * Download the raw code from [github](https://raw.githubusercontent.com/cgeisenberger/methedrine/master/app.R)
-  * copy into folder `path/to/app`
-  * execute `runApp("path/to/app")`
-2. Run directly
-  * **always runs newest version**
-  * execute `runGitHub( "methedrine", "cgeisenberger")`
+
+### Local: direct download
+
+* Download the raw code from [github](https://raw.githubusercontent.com/cgeisenberger/methedrine/master/app.R)
+* copy into folder `path/to/app`
+* execute `runApp("path/to/app")`
+
+
+### Local: run from GitHub
+
+* **recommended (always runs newest version)**
+* execute `runGitHub( "methedrine", "cgeisenberger")`
+
+
+### Shinyapps.io
+
+
 
