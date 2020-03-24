@@ -107,7 +107,7 @@ server <- function(input, output, session) {
       
       # generate reports -----
       out_files <- lapply(cases, FUN = function(x){render_report(case = x,
-                                                                 template = "./temp/netid_report.Rmd",
+                                                                 template = report_template,
                                                                  out_dir = file.path(report_dir, job_id),
                                                                  out_type = input$report_format)})
       
