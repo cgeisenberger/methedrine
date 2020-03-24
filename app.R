@@ -3,6 +3,13 @@
 
 
 
+# dependencies -----
+
+# load crystalmeth
+install.packages("devtools")
+devtools::install_github("cgeisenberger/crystalmeth")
+library(crystalmeth)
+
 # attach packages -----
 
 library(shiny)
@@ -10,7 +17,6 @@ library(shinythemes)
 library(shinyjs)
 library(uuid)
 library(tidyverse)
-library(crystalmeth)
 
 
 
