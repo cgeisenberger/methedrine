@@ -16,31 +16,23 @@ library(crystalmeth)
 
 # set global parameters -----
 
-# max 30 Mb uploads
+# shiny parameters
 options(shiny.maxRequestSize = 30*1024^2)
+
+# i/o
 upload_dir <- "./uploads/"
+dir.create(upload_dir)
+
 report_dir <- "./reports/"
+dir.create(report_dir)
 
-# attach report template
-report_template <- "/Users/cge/Dropbox/Research/software/methedrine/temp/netid_report.Rmd"
-
-# create folders if necessary
-if (!dir.exists(upload_dir)){
-  cat("Upload directory doesn't exist and will be created")
-  dir.create(upload_dir)
-}
-
-if (!dir.exists(report_dir)){
-  cat("Report directory doesn't exist and will be created")
-  dir.create(report_dir)
-}
-
+# report template
+report_template <- "./included/netid_report.Rmd"
 
 # attach randomForest object
-load("/Users/cge/Dropbox/Research/software/methedrine/temp/NetID_v1.RData")
-
-# rename for convenience
-classifier <- net_id_v1
+load("./included/NetID_v1.RData")
+# rename to match variables
+classifier <- net_id_v1 
 rm(net_id_v1)
 
 
@@ -56,7 +48,7 @@ server <- function(input, output, session) {
       return()
     } else {
       
-      # disable download button (reset if user performs multiple uploads)
+      # disable download button (acts as a reset if user performs multiple uploads)
       shinyjs::disable("download_reports")
       
       # validate uploaded files -----
@@ -134,9 +126,6 @@ server <- function(input, output, session) {
   
   # disable the downdload button on page load
   shinyjs::disable("download_reports")
-  
-  
-  
 }
 
 
@@ -207,9 +196,8 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
 )
 
 
-#--------------#
-### Run App ####
-#--------------#
+
+# Run App -----
 
 shinyApp(ui = ui, server = server)
 
