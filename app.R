@@ -6,17 +6,21 @@
 # dependencies -----
 
 # load crystalmeth
-install.packages("devtools")
-devtools::install_github("cgeisenberger/crystalmeth")
 library(crystalmeth)
 
-# attach packages -----
-
+# attach packages
 library(shiny)
 library(shinythemes)
 library(shinyjs)
 library(uuid)
 library(tidyverse)
+
+# add Bioconductor repositories (otherwise, deployment crashes)
+library(BiocManager)
+options(repos = BiocManager::repositories())
+
+# import helper functions
+source("./global.R")
 
 
 
@@ -25,21 +29,19 @@ library(tidyverse)
 # shiny parameters
 options(shiny.maxRequestSize = 30*1024^2)
 
-# i/o
+# set i/o directories
 upload_dir <- "./uploads/"
-dir.create(upload_dir)
-
 report_dir <- "./reports/"
-dir.create(report_dir)
+
+# create if directories do not exist yet
+dir_create2(upload_dir)
+dir_create2(report_dir)
 
 # report template
 report_template <- "./included/netid_report.Rmd"
 
-# attach randomForest object
-load("./included/NetID_v1.RData")
-# rename to match variables
-classifier <- net_id_v1 
-rm(net_id_v1)
+# load classifier
+classifier <- readRDS(file = "./included/net_id_v1.rds")
 
 
 
@@ -47,27 +49,25 @@ rm(net_id_v1)
 
 server <- function(input, output, session) {
   
+  # disable the download and submit button on page load
+  shinyjs::disable("download_reports")
+  shinyjs::disable("submit")
+  
+  # create container for reactive variables
+  values <- reactiveValues()
+  
   observe({
     
     # return if nothing happens
     if (is.null(input$upload)) {
       return()
     } else {
+      # assign UUID to job and copy files -----
+      values$id <- uuid::UUIDgenerate()
       
-      # disable download button (acts as a reset if user performs multiple uploads)
-      shinyjs::disable("download_reports")
-      
-      # validate uploaded files -----
-      
-      # assign UUID and time stamp to upload
-      job_id <- uuid::UUIDgenerate()
-      time <- Sys.time()
-      
-      # extract temp directory of uploaded files
+      # create dir
       temp_dir <- input$upload$datapath
-      
-      # create a new directory for uploaded files and output
-      job_dir <- file.path(upload_dir, job_id)
+      job_dir <- file.path(upload_dir, values$id)
       dir.create(job_dir)
       
       # copy files
@@ -75,63 +75,74 @@ server <- function(input, output, session) {
       file.copy(from = temp_dir, 
                 to = file.path(job_dir, files))
       
-      # scan and validate uploaded files
+      # scan uploaded files -----
       queue <- scan_directory(dir = job_dir)
       
       # extract valid classification cases
+      n_samples <- length(get_cases(queue))
       basenames <- get_cases(queue)
-      n_samples <- length(basenames)
       
       # list invalid files and cases
       files_invalid <- c(get_invalid(queue), get_red_only(queue), get_green_only(queue))
       n_invalid <- length(files_invalid)
       
-      # check if valid cases have been uploaded
+      # react to upload -----
+      # display error and abort if there are no valid samples
+      # display warning if there are valid AND invalid samples
+      # create ClassificationCase objects for every pair of IDAT files
       if (n_samples == 0) {
-        msg <- "Error: No valid paired IDAT files, aborting..."
+        msg <- "Error: Upload does not contain valid pairs of IDAT files"
         showNotification(ui = msg, duration = NULL, type = "error")
         return()
-      }
-      
-      # check if non-IDAT or unpaired IDAT files are present
-      if (n_invalid != 0){
-        msg <- paste0("Warning: Detected ", n_invalid, " invalid (unpaired or non-IDAT) files.")
-        showNotification(ui = msg, duration = NULL, type = "warning")
-      }
-      
-      # sample processing -----
-      cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
-      lapply(cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
-      
-      # generate reports -----
-      out_files <- lapply(cases, FUN = function(x){render_report(case = x,
-                                                                 template = report_template,
-                                                                 out_dir = file.path(report_dir, job_id),
-                                                                 out_type = input$report_format)})
-      
-      # prepare download -----
-      out_zip <- file.path(report_dir, job_id, "results.zip")
-      zip(zipfile = out_zip, files = unlist(out_files), flags = "-j")
-
-      # enable downloads after archive has been created
-      shinyjs::enable("download_reports")
-      
-      # create download handler
-      output$download_reports <- downloadHandler(
-        
-        filename = function() {
-          return("results.zip")
-        },
-        
-        content = function(file) {
-          file.copy(from = out_zip, to = file)
+      } else {
+        # check if non-IDAT or unpaired IDAT files are present
+        if (n_invalid != 0){
+          msg <- paste0("Warning: Detected ", n_invalid, " invalid (unpaired or non-IDAT) files.")
+          showNotification(ui = msg, duration = NULL, type = "warning")
+        } else {
+          values$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
+          msg = paste0("Initiated samples")
+          showNotification(ui = msg, duration = NULL, type = "message")
+          shinyjs::enable("submit")
         }
-      )
+      }
     }
   })
   
-  # disable the downdload button on page load
-  shinyjs::disable("download_reports")
+  observeEvent(input$submit, {
+    shinyjs::disable("submit")
+    msg = paste0("Started processing...")
+    showNotification(ui = msg, duration = NULL, type = "message")
+    
+    # process samples
+    lapply(values$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
+    
+    # create reports
+    out_files <- lapply(values$cases, FUN = function(x){render_report(case = x,
+                                                               template = report_template,
+                                                               out_dir = file.path(report_dir, values$id),
+                                                               out_type = input$report_format)})
+    
+    # prepare download -----
+    out_zip <- file.path(report_dir, values$id, "results.zip")
+    zip(zipfile = out_zip, files = unlist(out_files), flags = "-j")
+    
+    # create download file handler -----
+    output$download_reports <- downloadHandler(
+      
+      filename = function() {
+        return("results.zip")
+      },
+      
+      content = function(file) {
+        file.copy(from = out_zip, to = file)
+      }
+    )
+    
+    # enable downloads after archive has been created
+    shinyjs::enable("download_reports")
+    
+    })
 }
 
 
@@ -171,32 +182,38 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
       
       # Input: File upload ----
       fileInput(inputId = "upload", 
-                label = "Upload IDAT Files",
+                label = "Step 1: Upload IDAT Files",
                 multiple = TRUE,
                 accept = c("application/idat")
                 ),
       
-      # Input: Report file format ----
-      "Select file format for reports:",
       
-      selectInput(inputId = "report_format",
-                  label = NULL,
-                  choices = c("pdf", "html"),
-                  selected = "pdf",
-                  multiple = FALSE),
+      # Input: Report file format ----
+      radioButtons(inputId = "report_format",
+                   label = "Step 2: Choose report file format",
+                   choices = c("html", "pdf"),
+                   selected = "html"),
+      
+      br(),
+      
+      # Input: Action button to start processing -----
+      fluidRow(align="center",
+        actionButton(inputId = "submit",
+                     label = "Step 3: Submit job")
+      ),
+      
+      hr(),
       
       # Download button
-      downloadButton("download_reports")
+      fluidRow(align="center",
+               downloadButton(outputId = "download_reports",
+                              label = "Step 4: Wait for download")
+      ),
     ),
     
     
     # Main panel for displaying outputs ----
-    mainPanel(
-      
-      # Output: Empty field for now
-      textOutput(outputId = "test"),
-
-    )
+    mainPanel(includeMarkdown("./contents/howto.md"))
     
   )
 )
