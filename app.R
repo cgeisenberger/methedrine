@@ -101,8 +101,6 @@ server <- function(input, output, session) {
           showNotification(ui = msg, duration = NULL, type = "warning")
         } else {
           values$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
-          msg = paste0("Initiated samples")
-          showNotification(ui = msg, duration = NULL, type = "message")
           shinyjs::enable("submit")
         }
       }
@@ -151,15 +149,6 @@ server <- function(input, output, session) {
 
 ui <- fluidPage(theme = shinytheme("spacelab"),
                 
-  tags$head(
-    tags$style(
-      HTML(".shiny-notification {
-      position:fixed;
-      top: calc(25%);
-      left: calc(50%);
-      }")
-      )
-    ),             
   # load shinyjs
   shinyjs::useShinyjs(),
   
