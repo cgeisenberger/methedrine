@@ -71,7 +71,7 @@ server <- function(input, output, session) {
       # copy files
       temp_dir <- input$upload$datapath
       file.copy(from = temp_dir, 
-                to = file.path(job_dir, files))
+                to = file.path(job_dir, input$upload$name))
       
       # scan uploaded files
       queue <- scan_directory(dir = job_dir)
@@ -101,25 +101,44 @@ server <- function(input, output, session) {
     }
   })
   
-  # observer: submit button -----
+  # observer: process samples when submit button is clicked -----
   observeEvent(input$submit, {
     shinyjs::disable("submit")
 
     # process samples
-    job$data <- lapply(values$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
-    
-    # create reports
-    out_files <- lapply(values$cases, FUN = function(x){render_report(case = x,
-                                                               template = report_template,
-                                                               out_dir = file.path(report_dir, values$id),
-                                                               out_type = input$report_format)})
-    
-    # prepare download -----
-    out_zip <- file.path(report_dir, values$id, "results.zip")
-    zip(zipfile = out_zip, files = unlist(out_files), flags = "-j")
-    
-    # create download file handler -----
-    output$download_reports <- downloadHandler(
+    job$data <- lapply(job$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
+    })
+  
+  # observer: render reports when data or format is changed -----
+  observeEvent({
+    # observe both data object and report format object
+    job$data
+    input$report_format
+    },{
+      
+      # return if data has not been processed (initial setting of format causes triggering otherwise)
+      if (is.null(job$data)) return()
+      
+      # disable downloads:
+      # if this is the first iteration, no noticeable change for user
+      # in case output file format is changed, previous download is disabled, 
+      # and re-enabled with new format after rendering of the reports is done
+      shinyjs::disable("download_reports")
+      
+      # create reports
+      out_files <- lapply(job$cases, FUN = function(x){render_report(case = x,
+                                                                     template = report_template,
+                                                                     out_dir = file.path(report_dir, job$id),
+                                                                     out_type = input$report_format)})
+      print(out_files)
+      # prepare download
+      out_zip <- file.path(report_dir, job$id, "results.zip")
+      if(file.exists(out_zip)) file.remove(out_zip)
+      
+      zip(zipfile = out_zip, files = unlist(out_files), flags = "-j")
+      
+      # create download file handler
+      output$download_reports <- downloadHandler(
       
       filename = function() {
         return("results.zip")
@@ -133,7 +152,7 @@ server <- function(input, output, session) {
     # enable downloads after archive has been created
     shinyjs::enable("download_reports")
     
-    })
+  })
 }
 
 
