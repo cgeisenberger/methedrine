@@ -54,35 +54,29 @@ server <- function(input, output, session) {
   shinyjs::disable("submit")
   
   # create container for reactive variables
-  values <- reactiveValues()
+  job <- reactiveValues()
   
+  # observer: upload ----
   observe({
     
     # return if nothing happens
     if (is.null(input$upload)) {
       return()
     } else {
-      # assign UUID to job and copy files -----
-      values$id <- uuid::UUIDgenerate()
-      
-      # create dir
-      temp_dir <- input$upload$datapath
-      job_dir <- file.path(upload_dir, values$id)
+      # assign UUID to job and create dir
+      job$id <- uuid::UUIDgenerate()
+      job_dir <- file.path(upload_dir, job$id)
       dir.create(job_dir)
       
       # copy files
-      files <- input$upload$name
+      temp_dir <- input$upload$datapath
       file.copy(from = temp_dir, 
                 to = file.path(job_dir, files))
       
-      # scan uploaded files -----
+      # scan uploaded files
       queue <- scan_directory(dir = job_dir)
-      
-      # extract valid classification cases
       n_samples <- length(get_cases(queue))
       basenames <- get_cases(queue)
-      
-      # list invalid files and cases
       files_invalid <- c(get_invalid(queue), get_red_only(queue), get_green_only(queue))
       n_invalid <- length(files_invalid)
       
@@ -100,20 +94,19 @@ server <- function(input, output, session) {
           msg <- paste0("Warning: Detected ", n_invalid, " invalid (unpaired or non-IDAT) files.")
           showNotification(ui = msg, duration = NULL, type = "warning")
         } else {
-          values$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
+          job$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
           shinyjs::enable("submit")
         }
       }
     }
   })
   
+  # observer: submit button -----
   observeEvent(input$submit, {
     shinyjs::disable("submit")
-    msg = paste0("Started processing...")
-    showNotification(ui = msg, duration = NULL, type = "message")
-    
+
     # process samples
-    lapply(values$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
+    job$data <- lapply(values$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
     
     # create reports
     out_files <- lapply(values$cases, FUN = function(x){render_report(case = x,
@@ -196,8 +189,13 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
       # Download button
       fluidRow(align="center",
                downloadButton(outputId = "download_reports",
-                              label = "Step 4: Wait for download")
+                              label = "4: Start Download")
       ),
+      
+      hr(),
+      
+      "Note: Refresh page to start new session"
+      
     ),
     
     
