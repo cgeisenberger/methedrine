@@ -43,6 +43,8 @@ report_template <- "./included/netid_report.Rmd"
 # load classifier
 classifier <- readRDS(file = "./included/net_id_v1.rds")
 
+# limit for samples
+n_limit <- 10
 
 
 # server -----
@@ -75,8 +77,8 @@ server <- function(input, output, session) {
       
       # scan uploaded files
       queue <- scan_directory(dir = job_dir)
-      n_samples <- length(get_cases(queue))
       basenames <- get_cases(queue)
+      n_samples <- length(basenames)
       files_invalid <- c(get_invalid(queue), get_red_only(queue), get_green_only(queue))
       n_invalid <- length(files_invalid)
       
@@ -94,8 +96,16 @@ server <- function(input, output, session) {
           msg <- paste0("Warning: Detected ", n_invalid, " invalid (unpaired or non-IDAT) files.")
           showNotification(ui = msg, duration = NULL, type = "warning")
         } else {
-          job$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
-          shinyjs::enable("submit")
+          if (n_samples > n_limit) {
+            msg <- paste0("Upload is limited to ", n_limit, " samples. Skipping remainder")
+            showNotification(ui = msg, duration = NULL, type = "warning")
+            job$n <- n_limit
+            job$cases <- lapply(X = as.list(basenames[1:n_limit]), ClassificationCase$new, path = job_dir)
+            shinyjs::enable("submit")
+          } else {
+            job$n <- n_samples
+            job$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
+          }
         }
       }
     }
@@ -104,9 +114,24 @@ server <- function(input, output, session) {
   # observer: process samples when submit button is clicked -----
   observeEvent(input$submit, {
     shinyjs::disable("submit")
+    
+    # create and initiate progress indicator
+    progress <- shiny::Progress$new()
+    on.exit(progress$close())
+    progress$set(message = "Processing sample(s)", value = 0)
 
+    # create empty list for results
+    processed_data <- vector("list", length = job$n)
+    
     # process samples
-    job$data <- lapply(job$cases, FUN = function(x){x$run_workflow(rf_object = classifier)})
+    for (i in 1:(job$n)){
+      processed_data[[i]] <- job$cases[[i]]$run_workflow(rf_object = classifier)
+      progress$inc(1/(job$n), detail = paste(i, " of ", job$n))
+    }
+    
+    # create reactive value from data
+    job$data <- processed_data
+    
     })
   
   # observer: render reports when data or format is changed -----
@@ -125,12 +150,22 @@ server <- function(input, output, session) {
       # and re-enabled with new format after rendering of the reports is done
       shinyjs::disable("download_reports")
       
+      # create and initiate progress indicator
+      progress <- shiny::Progress$new()
+      on.exit(progress$close())
+      progress$set(message = "Rendering report(s)", value = 0)
+      
       # create reports
-      out_files <- lapply(job$cases, FUN = function(x){render_report(case = x,
-                                                                     template = report_template,
-                                                                     out_dir = file.path(report_dir, job$id),
-                                                                     out_type = input$report_format)})
-      print(out_files)
+      out_files <- vector("list", length = job$n)
+      
+      for (i in 1:(job$n)){
+        out_files[[i]] <- render_report(case = job$data[[i]],
+                                        template = report_template, 
+                                        out_dir = file.path(report_dir, job$id),
+                                        out_type = input$report_format)
+        progress$inc(1/(job$n), detail = paste(i, " of ", job$n))
+      }
+
       # prepare download
       out_zip <- file.path(report_dir, job$id, "results.zip")
       if(file.exists(out_zip)) file.remove(out_zip)
@@ -213,7 +248,9 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
       
       hr(),
       
-      "Note: Refresh page to start new session"
+      "Note: Changing the output file format after sample processing is complete will disable the current download.
+      The download button is re-activated as soons as the new reports have been rendered."
+        
       
     ),
     
