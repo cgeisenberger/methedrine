@@ -101,11 +101,11 @@ server <- function(input, output, session) {
             showNotification(ui = msg, duration = NULL, type = "warning")
             job$n <- n_limit
             job$cases <- lapply(X = as.list(basenames[1:n_limit]), ClassificationCase$new, path = job_dir)
-            shinyjs::enable("submit")
           } else {
             job$n <- n_samples
             job$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
           }
+          shinyjs::enable("submit")
         }
       }
     }
