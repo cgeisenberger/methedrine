@@ -1,0 +1,120 @@
+---
+title: NEN-ID Classification report
+output:
+  prettydoc::html_pretty:
+    toc: false
+    theme: hpstr
+fontsize: 10pt
+---
+
+
+```{r, include = FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gridExtra)
+library(grid)
+library(conumee)
+library(tidyverse)
+library(ggtern)
+```
+
+
+## Sample Information and Classification Results
+
+```{r, echo = FALSE, fig.align = 'center', out.width = '80%', dpi = 300}
+
+
+# Calculate additional variables ----
+
+avg_beta <- round(mean(case$data_beta) * 100, digits = 2)
+imp <- (case$data_na_n / nrow(case$data_beta) * 100)
+imp <- ifelse(imp < 0.01, "< 0.01", imp)
+
+class <- case$class_type_calibrated
+score <- round(case$class_votes_calibrated[, class] * 100, digits = 2) %>% unlist %>% unname
+p_absolute <- case$purity$purity[1] %>% unname
+p_estimate <- case$purity$purity[2] %>% unname
+
+
+
+# Table 1: Sample Data ----
+
+# create theme
+t1_theme <- ttheme_minimal(core = list(bg_params = list(fill = "white", col = NA),
+                                    fg_params = list(fontsize = 10, hjust = 0, x = 0.01)))
+
+# enter data 
+t1_params <- c("Sentrix ID:", "Platform:", "Imputed data points (%):", "Avg. methylation (%):",
+               "", "",
+               "Methylation Class:", "Class Score:", "Tumor Purity ABSOLUTE (%):", "Tumor Purity ESTIMATE (%):")
+t1_values <- c(case$array_basename, case$array_platform, imp, avg_beta, "", "",
+               class, score, p_absolute, p_estimate)
+t1_data <- data.frame(Parameter = t1_params,
+                      Values = t1_values)
+
+# create grob
+t1 <- tableGrob(t1_data,
+                theme = t1_theme,
+                cols = NULL,
+                rows = NULL)
+
+
+
+# Plot: Tumor purity barplot -----
+
+plot_purity <- case$purity %>%
+  ggplot2::ggplot(aes(x = method, y = purity, fill = method)) +
+  ggplot2::geom_bar(stat = "identity", colour = "black") +
+  ggplot2::lims(y = c(0, 100)) +
+  ggplot2::labs(x = NULL, y = "Tumor purity (estimated)") +
+  ggplot2::theme(legend.position = "none")
+
+
+
+# Add section headers -----
+
+header_sample <- grid::textGrob(label = "Sample Information & Classification Results",
+                                hjust = 0, vjust = 0, x = 0, y = 0,
+                                gp = gpar(fontsize = 15, col="grey"))
+
+
+# Arrange elements into plot -----
+
+
+grid_layout <- rbind(c(1, 1, 1, 1, 2, 2),
+                     c(1, 1, 1, 1, 2, 2),
+                     c(1, 1, 1, 1, 2, 2))
+ 
+gridExtra::grid.arrange(
+  grobs = list(t1, 
+               plot_purity),
+  layout_matrix = grid_layout)
+
+
+```
+
+
+
+## Ternary Plot
+
+```{r,echo = FALSE, fig.align = 'center', out.width = '80%', dpi = 300}
+case$class_votes_calibrated %>%
+  ggtern(aes(IlealNET, PanNET, PulmNET)) + theme_rgbw(base_size = 10) + theme_nogrid_minor() + geom_point(size = 6)
+```
+
+
+## Copynumber Plot
+
+
+```{r cnv, echo = FALSE, fig.height = 3, fig.align = 'center', dpi = 300}
+conumee::CNV.genomeplot(case$cnv, main = NA)
+```
+
+
+
+## References & Disclaimer
+
+The NEN-ID classification algorithm has been published by Hackeng et al., 2020 (*Journal Name*, 2020). Tumor purity estimation is performed with **RF_Purify** (*Johann et al., BMC Bioinformatics, 2019*). Copy-number plots are based on the **Conumee** package published by Hovestadt & Zapatka (available on *Bioconductor*). 
+
+*Note: NEN-ID is not a diagnostic tool. Classification using methylation profiling is a research tool under development, it is not verified and has not been clinically validated. Implementation of the results in a clinical setting is in the sole responsibility of the treating physician. Intended for non-commercial use only.*
+
+Report created: `r Sys.time()`
