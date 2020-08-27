@@ -8,16 +8,18 @@
 # load crystalmeth
 library(crystalmeth)
 
+# add Bioconductor repositories (otherwise, deployment crashes)
+library(BiocManager)
+options(repos = BiocManager::repositories())
+
 # attach packages
 library(shiny)
 library(shinythemes)
 library(shinyjs)
 library(uuid)
 library(tidyverse)
-
-# add Bioconductor repositories (otherwise, deployment crashes)
-library(BiocManager)
-options(repos = BiocManager::repositories())
+library(glmnet)
+library(conumee)
 
 # import helper functions
 source("./global.R")
@@ -38,10 +40,11 @@ dir_create2(upload_dir)
 dir_create2(report_dir)
 
 # report template
-report_template <- "./included/netid_report.Rmd"
+report_template <- "./included/nen_id_template_html.Rmd"
 
 # load classifier
-classifier <- readRDS(file = "./included/net_id_v1.rds")
+classifier <- readRDS(file = "./included/rf_model.rds")
+calibration_model <- readRDS(file = "./included/calibration_model.rds")
 
 # limit for samples
 n_limit <- 10
@@ -65,6 +68,9 @@ server <- function(input, output, session) {
     if (is.null(input$upload)) {
       return()
     } else {
+      # disable download button if other cases have already been processed
+      shinyjs::disable("download_reports")
+      
       # assign UUID to job and create dir
       job$id <- uuid::UUIDgenerate()
       job_dir <- file.path(upload_dir, job$id)
@@ -91,12 +97,14 @@ server <- function(input, output, session) {
         showNotification(ui = msg, duration = NULL, type = "error")
         return()
       } else {
-        # check if non-IDAT or unpaired IDAT files are present
+        # display warning if invalid files are present
         if (n_invalid != 0){
+          # do this if all files are valid
           msg <- paste0("Warning: Detected ", n_invalid, " invalid (unpaired or non-IDAT) files.")
           showNotification(ui = msg, duration = NULL, type = "warning")
-        } else {
-          if (n_samples > n_limit) {
+        } 
+        # check if uploaded samples exceed the limit (n = 10)
+        if (n_samples > n_limit) {
             msg <- paste0("Upload is limited to ", n_limit, " samples. Skipping remainder")
             showNotification(ui = msg, duration = NULL, type = "warning")
             job$n <- n_limit
@@ -105,9 +113,9 @@ server <- function(input, output, session) {
             job$n <- n_samples
             job$cases <- lapply(X = as.list(basenames), ClassificationCase$new, path = job_dir)
           }
-          shinyjs::enable("submit")
-        }
       }
+      print(job$cases)
+      shinyjs::enable("submit")
     }
   })
   
@@ -122,24 +130,21 @@ server <- function(input, output, session) {
 
     # create empty list for results
     processed_data <- vector("list", length = job$n)
-    
+
     # process samples
     for (i in 1:(job$n)){
-      processed_data[[i]] <- job$cases[[i]]$run_workflow(rf_object = classifier)
-      progress$inc(1/(job$n), detail = paste(i, " of ", job$n))
+      processed_data[[i]] <- job$cases[[i]]$run_full_workflow(
+        rf_model = classifier, 
+        calibration_model = calibration_model)
+      progress$inc(1/(job$n), detail = paste(i + 1, " of ", job$n))
     }
     
     # create reactive value from data
     job$data <- processed_data
-    
     })
   
   # observer: render reports when data or format is changed -----
-  observeEvent({
-    # observe both data object and report format object
-    job$data
-    input$report_format
-    },{
+  observeEvent(job$data, {
       
       # return if data has not been processed (initial setting of format causes triggering otherwise)
       if (is.null(job$data)) return()
@@ -160,10 +165,10 @@ server <- function(input, output, session) {
       
       for (i in 1:(job$n)){
         out_files[[i]] <- render_report(case = job$data[[i]],
-                                        template = report_template, 
-                                        out_dir = file.path(report_dir, job$id),
-                                        out_type = input$report_format)
-        progress$inc(1/(job$n), detail = paste(i, " of ", job$n))
+                                        input = report_template, 
+                                        output_dir = file.path(report_dir, job$id),
+                                        output_file = paste0(job$data[[i]]$array_basename, ".html"))
+        progress$inc(1/(job$n), detail = paste(i+1, " of ", job$n))
       }
 
       # prepare download
@@ -200,7 +205,7 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
   shinyjs::useShinyjs(),
   
   # App title ----
-  titlePanel("NET-ID: Methylation classification for neuroendocrine tumors"),
+  titlePanel("NEN-ID: Methylation classification for neuroendocrine tumors"),
   
   # Header  -----
   # currently empty 
@@ -225,31 +230,31 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
       
       
       # Input: Report file format ----
-      radioButtons(inputId = "report_format",
-                   label = "Step 2: Choose report file format",
-                   choices = c("html", "pdf"),
-                   selected = "html"),
-      
-      br(),
+      # radioButtons(inputId = "report_format",
+      #              label = "Step 2: Choose report file format",
+      #              choices = c("html", "pdf"),
+      #              selected = "html"),
+      # 
+      # br(),
       
       # Input: Action button to start processing -----
       fluidRow(align="center",
         actionButton(inputId = "submit",
-                     label = "Step 3: Submit job")
+                     label = "Step 2: Submit job")
       ),
       
-      hr(),
+      br(),
+      br(),
       
       # Download button
       fluidRow(align="center",
                downloadButton(outputId = "download_reports",
-                              label = "4: Start Download")
+                              label = "Step 3: Download")
       ),
       
       hr(),
       
-      "Note: Changing the output file format after sample processing is complete will disable the current download.
-      The download button is re-activated as soons as the new reports have been rendered."
+      "Note: Processing samples can be slow!"
         
       
     ),
