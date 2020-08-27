@@ -25,9 +25,7 @@ devtools::install_github("cgeisenberger/crystalmeth")
 
 ### Pandoc & pdflatex
 
-> The following steps are only necessary if reports are rendered in PDF format (which is currently not supported)
-
-`Crystalmeth` and `methedrine` use markdown-based templates to generate diagnostic reports. Therefore, addtional software is necessary to compile PDFs and HTML files. First, make sure `pandoc` is installed. For Mac OS users, this line of code will do the trick (assuming [Homebrew](https://brew.sh) is available on your system): `brew install pandoc`. If that doesn't work, refer to the [Pandoc documentation](https://pandoc.org/installing.html) for troubleshooting.
+Crystalmeth` and `methedrine` use markdown-based templates to generate diagnostic reports. Therefore, addtional software is necessary to compile PDFs and HTML files. First, make sure `pandoc` is installed. For Mac OS users, this line of code will do the trick (assuming [Homebrew](https://brew.sh) is available on your system): `brew install pandoc`. If that doesn't work, refer to the [Pandoc documentation](https://pandoc.org/installing.html) for troubleshooting.
 
 Having `pandoc` installed will enable you to compile HTML reports. To be able to generate PDFs, tinytex is needed aswell, install via:
 
