@@ -50,8 +50,12 @@ All the necessary code to run *methedrine* is contained in `app.R`. There are th
 
 ### Local: run from GitHub
 
-* **recommended (always runs newest version)**
-* execute `runGitHub( "methedrine", "cgeisenberger")`
+> **recommended (always runs newest version)**
+
+```{r}
+library(shiny)
+runGitHub( "methedrine", "cgeisenberger")
+```
 
 
 ### Shinyapps.io
