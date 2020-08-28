@@ -1,14 +1,14 @@
 # Methedrine
 
-Web application for methylation-based diagnostic profiling of tumors
+`Methedrine` is a web application for methylation-based diagnostic profiling of tumors. It can be used to predict tissue origin for [neuroendocrine tumors](https://en.wikipedia.org/wiki/Neuroendocrine_tumor). The code used to produce the random forest classifier and calibration model can be found in the [NEN-ID repository](https://github.com/whackeng/NEN-ID). For more information, please refer to our publication [Hackeng et al.]().
+
+> Note: Methedrine comes pre-packed with a html report template and a classifier + calibration models for neuroendocrine tumors. However, the application can easily be extended by replacing the objects declared in app.R. Please contact the package authors if you need help with the setup. 
 
 
 ## Introduction
 
 This repository provides a web interface for the automated analysis of DNA methylation data for diagnostic purposes. More specifically, 
 users can upload raw IDAT files for Illumina 450K and EPIC arrays. The samples are processed, classified and a HTML report is generated for every pair of input IDAT files. Once the processing is finished, the reports are made available for download as a `.zip` file. The following sections provide more information about the underlying software and how to set up the web application. 
-
-> Note: Methedrine comes pre-packed with a html report template and a classifier + calibration models for neuroendocrine tumors. However, the application can easily be extended by replacing the objects declared in app.R. Please contact the package authors if you need help with the setup. 
 
 
 ## Installing dependencies
