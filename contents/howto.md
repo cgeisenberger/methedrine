@@ -1,6 +1,6 @@
 **Feedback and Support**
 
-NEN-ID application was made possible through the support of many people. We would like to **encourage users to contact us** at `nenid.contact [at] gmail.com`. Tracking usage in this fashion allows us (1) to justify the monetary expenses, (2) contact users if changes are made to the software and (3) try to connect with the community interested in neuroendocrine neoplasms. This is optional and not reauired for usage, and any information such as email adresses will be treated with utmost care and not be shared with third parties. 
+The NEN-ID application was made possible through the support of many people. We would like to **encourage users to contact us** at `nenid.contact [at] gmail.com`. Tracking usage in this fashion allows us (1) to justify the monetary expenses, (2) contact users if changes are made to the software and (3) try to connect with the community interested in neuroendocrine neoplasms. This is optional and not required for usage, and any information such as email adresses will be treated with utmost care and not be shared with third parties. 
 
 If you should need help in running this tool or have questions regarding the software, please use the email provided above or contact the authors [@cgeisenberger](https://github.com/cgeisenberger) and [@whackeng](https://github.com/whackeng).
 
