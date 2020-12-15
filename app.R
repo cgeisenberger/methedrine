@@ -5,8 +5,10 @@
 
 # dependencies -----
 
-# load crystalmeth
-library(crystalmeth)
+# IMPORTANT NOTE
+# Loading of some libraries has been moved to a different section (observer: upload)
+# to allow for faster loading of the online application
+
 
 # add Bioconductor repositories (otherwise, deployment crashes)
 library(BiocManager)
@@ -18,8 +20,6 @@ library(shinythemes)
 library(shinyjs)
 library(uuid)
 library(tidyverse)
-library(glmnet)
-library(conumee)
 
 # import helper functions
 source("./global.R")
@@ -68,6 +68,12 @@ server <- function(input, output, session) {
     if (is.null(input$upload)) {
       return()
     } else {
+      
+      # load necessary libraries
+      library(crystalmeth)
+      library(glmnet)
+      library(conumee)
+      
       # disable download button if other cases have already been processed
       shinyjs::disable("download_reports")
       
@@ -254,7 +260,8 @@ ui <- fluidPage(theme = shinytheme("spacelab"),
       
       hr(),
       
-      "Note: Processing samples can be slow!"
+      "Note: There is a small delay between uploading and activation of 
+      submit button. Also, processing samples of can be slow!"
         
       
     ),
